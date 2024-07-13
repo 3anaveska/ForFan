@@ -7,6 +7,8 @@
 #include "Components/InputComponent.h"
 #include "GameFramework/CharacterMovementComponent.h"
 #include "GameFramework/Controller.h"
+#include "Kismet/GameplayStatics.h"
+#include "Kismet/KismetMathLibrary.h"
 #include "GameFramework/SpringArmComponent.h"
 
 //////////////////////////////////////////////////////////////////////////
@@ -76,6 +78,126 @@ void AForfanCharacter::SetupPlayerInputComponent(class UInputComponent* PlayerIn
 	PlayerInputComponent->BindAction("ResetVR", IE_Pressed, this, &AForfanCharacter::OnResetVR);
 }
 
+void AForfanCharacter::MovementTick(float DeltaTime)
+{
+	AddMovementInput(FVector(1.0f, 0.0f, 0.0f), AxisX);
+	AddMovementInput(FVector(0.0f, 1.0f, 0.0f), AxisY);
+
+	if (MovementState == EMovementState::SprintRunState)
+	{
+		FVector myRotationVector = FVector(AxisX, AxisY, 0.0f);
+		FRotator myRotator = myRotationVector.ToOrientationRotator();
+		SetActorRotation((FQuat(myRotator)));
+	}
+	else
+	{
+		APlayerController* myController = UGameplayStatics::GetPlayerController(GetWorld(), 0);
+		if (myController)
+		{
+			FHitResult ResultHit;
+			//myController->GetHitResultUnderCursorByChannel(ETraceTypeQuery::TraceTypeQuery6, false, ResultHit);// bug was here Config\DefaultEngine.Ini
+			myController->GetHitResultUnderCursor(ECC_GameTraceChannel1, true, ResultHit);
+
+			float FindRotaterResultYaw = UKismetMathLibrary::FindLookAtRotation(GetActorLocation(), ResultHit.Location).Yaw;
+			SetActorRotation(FQuat(FRotator(0.0f, FindRotaterResultYaw, 0.0f)));
+
+			//if (CurrentWeapon)
+			//{
+				FVector Displacement = FVector(0);
+				switch (MovementState)
+				{
+				case EMovementState::AimState:
+					Displacement = FVector(0.0f, 0.0f, 160.0f);
+					//CurrentWeapon->ShouldReduceDispersion = true;
+					break;
+				case EMovementState::AimWalkState:
+					Displacement = FVector(0.0f, 0.0f, 160.0f);
+					//CurrentWeapon->ShouldReduceDispersion = true;
+					break;
+				case EMovementState::WalkState:
+					Displacement = FVector(0.0f, 0.0f, 120.0f);
+					//CurrentWeapon->ShouldReduceDispersion = false;
+					break;
+				case EMovementState::RunState:
+					Displacement = FVector(0.0f, 0.0f, 120.0f);
+					//CurrentWeapon->ShouldReduceDispersion = false;
+					break;
+				case EMovementState::SprintRunState:
+					break;
+				default:
+					break;
+				//}
+
+				//CurrentWeapon->ShootEndLocation = ResultHit.Location + Displacement;
+				//aim cursor like 3d Widget?
+			}
+		}
+	}
+}
+
+void AForfanCharacter::CharacterUpdate()
+{
+	float ResSpeed = 600.0f;
+	switch (MovementState) {
+	case EMovementState::AimState:
+		ResSpeed = MovementInfo.AimSpeed;
+		break;
+	case EMovementState::AimWalkState:
+		ResSpeed = MovementInfo.AimWalkSpeed;
+		break;
+	case EMovementState::WalkState:
+		ResSpeed = MovementInfo.WalkSpeed;
+		break;
+	case EMovementState::RunState:
+		ResSpeed = MovementInfo.RunSpeed;
+		break;
+	case EMovementState::SprintRunState:
+		ResSpeed = MovementInfo.SprintRunSpeed;
+		break;
+	}
+
+	GetCharacterMovement()->MaxWalkSpeed = ResSpeed;
+}
+
+void AForfanCharacter::ChangeMovementState()
+{
+	if (!WalkEnabled && !SprintRunEnabled && !AimEnabled) {
+		MovementState = EMovementState::RunState;
+	}
+	else {
+		if (SprintRunEnabled) {
+			WalkEnabled = false;
+			AimEnabled = false;
+			MovementState = EMovementState::SprintRunState;
+		}
+		if (WalkEnabled && !SprintRunEnabled && AimEnabled) {
+			MovementState = EMovementState::AimWalkState;
+		}
+		else {
+			if (WalkEnabled && !SprintRunEnabled && !AimEnabled) {
+				MovementState = EMovementState::WalkState;
+			}
+			else {
+				if (!WalkEnabled && !SprintRunEnabled && AimEnabled) {
+					MovementState = EMovementState::AimState;
+				}
+			}
+		}
+	}
+	CharacterUpdate();
+}
+
+void AForfanCharacter::InputAxisX(float Value)
+{
+	AxisX = Value;
+}
+
+void AForfanCharacter::InputAxisY(float Value)
+{
+	AxisY = Value;
+}
+
+
 
 void AForfanCharacter::OnResetVR()
 {
@@ -121,6 +243,7 @@ void AForfanCharacter::MoveForward(float Value)
 		// get forward vector
 		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::X);
 		AddMovementInput(Direction, Value);
+		AxisX = Value;
 	}
 }
 
@@ -137,5 +260,6 @@ void AForfanCharacter::MoveRight(float Value)
 		const FVector Direction = FRotationMatrix(YawRotation).GetUnitAxis(EAxis::Y);
 		// add movement in that direction
 		AddMovementInput(Direction, Value);
+		AxisY = Value;
 	}
 }

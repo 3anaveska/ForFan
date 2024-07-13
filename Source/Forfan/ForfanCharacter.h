@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Character.h"
+#include "Forfan/Types.h"
 #include "ForfanCharacter.generated.h"
 
 UCLASS(config=Game)
@@ -69,7 +70,40 @@ public:
 	/** Returns FollowCamera subobject **/
 	FORCEINLINE class UCameraComponent* GetFollowCamera() const { return FollowCamera; }
 
-	UPROPERTY(BlueprintAssignable, EditAnywhere, BlueprintReadWrite, Category = "Health")
-	bool IsDead;
+	//UFUNCTION(BlueprintAssignable, EditAnywhere, BlueprintReadWrite, Category = "Health")
+	//bool IsDead;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	EMovementState MovementState = EMovementState::RunState;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	FCharacterSpeed MovementInfo;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	bool SprintRunEnabled = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	bool WalkEnabled = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movement")
+	bool AimEnabled = false;
+
+	UFUNCTION()
+	void InputAxisX(float Value);
+	UFUNCTION()
+	void InputAxisY(float Value);
+
+	float AxisX = 0.0f;
+	float AxisY = 0.0f;
+
+	UFUNCTION()
+	void MovementTick(float DeltaTime);
+
+	UFUNCTION(BlueprintCallable)
+	void CharacterUpdate();
+
+	UFUNCTION(BlueprintCallable)
+	void ChangeMovementState();
+
 };
 
